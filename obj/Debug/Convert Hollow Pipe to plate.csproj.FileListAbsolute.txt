@@ -1,0 +1,9 @@
+C:\development\applications\Convert Hollow Pipe to plate\Convert Hollow Pipe to plate\bin\Debug\Convert Hollow Pipe to plate.exe.config
+C:\development\applications\Convert Hollow Pipe to plate\Convert Hollow Pipe to plate\bin\Debug\Convert Hollow Pipe to plate.exe
+C:\development\applications\Convert Hollow Pipe to plate\Convert Hollow Pipe to plate\bin\Debug\Convert Hollow Pipe to plate.pdb
+C:\development\applications\Convert Hollow Pipe to plate\Convert Hollow Pipe to plate\obj\Debug\Convert Hollow Pipe to plate.csprojResolveAssemblyReference.cache
+C:\development\applications\Convert Hollow Pipe to plate\Convert Hollow Pipe to plate\obj\Debug\Convert_Hollow_Pipe_to_plate.Form1.resources
+C:\development\applications\Convert Hollow Pipe to plate\Convert Hollow Pipe to plate\obj\Debug\Convert_Hollow_Pipe_to_plate.Properties.Resources.resources
+C:\development\applications\Convert Hollow Pipe to plate\Convert Hollow Pipe to plate\obj\Debug\Convert Hollow Pipe to plate.csproj.GenerateResource.Cache
+C:\development\applications\Convert Hollow Pipe to plate\Convert Hollow Pipe to plate\obj\Debug\Convert Hollow Pipe to plate.exe
+C:\development\applications\Convert Hollow Pipe to plate\Convert Hollow Pipe to plate\obj\Debug\Convert Hollow Pipe to plate.pdb
