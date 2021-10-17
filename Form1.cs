@@ -56,6 +56,9 @@ namespace Convert_Hollow_Pipe_to_plate
            }
 
        }
+
+            groovebetween2points( plate,  thickness,  zero, zero + length*vecy, T3D.Vector normalvec, T3D.Vector insidevec, T3D.Point stiffmidpoint, double wsize, double wsize2, int wtype, int wtype2, double wangle, double wangle2, double extension)
+    
             myModel.CommitChanges();
 
 
@@ -96,5 +99,189 @@ namespace Convert_Hollow_Pipe_to_plate
             plate.Insert();
             return plate;
         }
+
+        private void groovebetween2points(Part cutpart, double cutthk, T3D.Point p1, T3D.Point p2, T3D.Vector normalvec, T3D.Vector insidevec, T3D.Point stiffmidpoint, double wsize, double wsize2, int wtype, int wtype2, double wangle, double wangle2, double extension)
+        {
+            normalvec.Normalize();
+            insidevec.Normalize();
+            T3D.GeometricPlane faceplane = new T3D.GeometricPlane(p1, new T3D.Vector(p2 - p1), normalvec);
+            // T3D.Vector insidevec = new T3D.Vector(stiffmidpoint - T3D.Projection.PointToPlane(stiffmidpoint, faceplane));
+            insidevec.Normalize();
+
+            T3D.Point mymidpoint = getmidpoint(p1, p2);
+
+            T3D.Point gr1p1 = mymidpoint + cutthk / 2 * normalvec;
+            T3D.Point gr1p2 = gr1p1 - wsize * normalvec;
+            T3D.Point gr1p3 = gr1p1 + wsize * Math.Tan(wangle * Math.PI / 180) * insidevec;
+
+            T3D.Point gr2p1 = mymidpoint - cutthk / 2 * normalvec;
+            T3D.Point gr2p2 = gr2p1 + wsize2 * normalvec;
+            T3D.Point gr2p3 = gr2p1 + wsize2 * Math.Tan(wangle2 * Math.PI / 180) * insidevec;
+
+            string grooveprofie = "PL" + (T3D.Distance.PointToPoint(p1, p2) + 2 * extension);
+            if (wtype == 1 || wtype == 2)
+            {
+                createBevel(cutpart, gr1p1, gr1p2, gr1p3, grooveprofie);
+            }
+            if (wtype2 == 1 || wtype2 == 2)
+            {
+                createBevel(cutpart, gr2p1, gr2p2, gr2p3, grooveprofie);
+            }
+        }
+
+        private void createBevel(Part cuttedpart, T3D.Point p1, T3D.Point p2, T3D.Point p3, string profile)
+        {
+            ContourPlate contourPlate = new ContourPlate();
+            contourPlate.Class = BooleanPart.BooleanOperativeClassName;
+            contourPlate.Profile.ProfileString = profile;
+            contourPlate.Contour.AddContourPoint(new ContourPoint(p1, new Chamfer()));
+            contourPlate.Contour.AddContourPoint(new ContourPoint(p2, new Chamfer()));
+            contourPlate.Contour.AddContourPoint(new ContourPoint(p3, new Chamfer()));
+            contourPlate.Name = "PLUGIN";
+            ///  if 
+            contourPlate.Insert();
+            {
+                BooleanPart booleanPart = new BooleanPart();
+                booleanPart.Father = cuttedpart;
+                booleanPart.SetOperativePart(contourPlate);
+                try
+                {
+                    booleanPart.Insert();
+                }
+                catch
+                {
+                }
+                contourPlate.Delete();
+            }
+        }
+        public T3D.Point getmidpoint(T3D.Point p1, T3D.Point p2)
+        {
+            double dis = T3D.Distance.PointToPoint(p1, p2);
+            T3D.Vector vec = new T3D.Vector(p2 - p1); vec.Normalize();
+            return p1 + 0.5 * dis * vec;
+        }
+
+        public Weld Weld(Part main, Part sec, double Size, double Size2, int type, int type2, double angle, double angle2, double root, double root2, double throat, double throat2, int ShoporSite, string WeldDirection, string Comment, int topgrind, int topgrind2)
+        {
+            Weld weld = new Weld();
+            weld.MainObject = main;
+            weld.SecondaryObject = sec;
+            weld.SizeAbove = Size;
+            weld.SizeBelow = Size2;
+            weld.AngleAbove = angle;
+            weld.AngleBelow = angle2;
+            weld.RootFaceAbove = root;
+            weld.RootFaceBelow = root2;
+            weld.EffectiveThroatAbove = throat;
+            weld.EffectiveThroatBelow = throat2;
+            weld.AroundWeld = false;
+            weld.ReferenceText = Comment;
+            if (ShoporSite == 0)
+            {
+                weld.ShopWeld = true;
+            }
+            else
+            {
+                weld.ShopWeld = false;
+            }
+            switch (WeldDirection)
+            {
+                case "+x": weld.Position = Tekla.Structures.Model.Weld.WeldPositionEnum.WELD_POSITION_PLUS_X; break;
+                case "-x": weld.Position = Tekla.Structures.Model.Weld.WeldPositionEnum.WELD_POSITION_MINUS_X; ; break;
+                case "+y": weld.Position = Tekla.Structures.Model.Weld.WeldPositionEnum.WELD_POSITION_PLUS_Y; break;
+                case "-y": weld.Position = Tekla.Structures.Model.Weld.WeldPositionEnum.WELD_POSITION_MINUS_Y; break;
+                case "+z": weld.Position = Tekla.Structures.Model.Weld.WeldPositionEnum.WELD_POSITION_PLUS_Z; break;
+                case "-z": weld.Position = Tekla.Structures.Model.Weld.WeldPositionEnum.WELD_POSITION_MINUS_Z; break;
+            }
+            if (topgrind == 0)
+            {
+                weld.ContourAbove = BaseWeld.WeldContourEnum.WELD_CONTOUR_NONE;
+            }
+            else if (topgrind == 1)
+            {
+                weld.ContourAbove = BaseWeld.WeldContourEnum.WELD_CONTOUR_FLUSH;
+            }
+            else if (topgrind == 2)
+            {
+                weld.ContourAbove = BaseWeld.WeldContourEnum.WELD_CONTOUR_CONVEX;
+            }
+            else
+            {
+                weld.ContourAbove = BaseWeld.WeldContourEnum.WELD_CONTOUR_CONCAVE;
+            }
+
+            if (topgrind2 == 0)
+            {
+                weld.ContourBelow = BaseWeld.WeldContourEnum.WELD_CONTOUR_NONE;
+            }
+            else if (topgrind2 == 1)
+            {
+                weld.ContourBelow = BaseWeld.WeldContourEnum.WELD_CONTOUR_FLUSH;
+            }
+            else if (topgrind2 == 2)
+            {
+                weld.ContourBelow = BaseWeld.WeldContourEnum.WELD_CONTOUR_CONVEX;
+            }
+            else
+            {
+                weld.ContourBelow = BaseWeld.WeldContourEnum.WELD_CONTOUR_CONCAVE;
+            }
+
+            if (type != 0)
+            {
+                weld.AngleAbove = angle;
+            }
+            if (type2 != 0)
+            {
+                weld.AngleBelow = angle2;
+            }
+
+            /*(0 = fillet , 1 = grove)*/
+            if (type == 1)
+            {
+                weld.TypeAbove = BaseWeld.WeldTypeEnum.WELD_TYPE_BEVEL_GROOVE_SINGLE_BEVEL_BUTT;
+            }
+            else if (type == 2)
+            {
+                weld.TypeAbove = BaseWeld.WeldTypeEnum.WELD_TYPE_PARTIAL_PENETRATION_SINGLE_BEVEL_BUTT_PLUS_FILLET;
+            }
+            else if (type == 3)
+            {
+                weld.TypeAbove = BaseWeld.WeldTypeEnum.WELD_TYPE_NONE;
+            }
+            else
+            {
+                weld.TypeAbove = BaseWeld.WeldTypeEnum.WELD_TYPE_FILLET;
+            }
+
+            if (type2 == 1)
+            {
+                weld.TypeBelow = BaseWeld.WeldTypeEnum.WELD_TYPE_BEVEL_GROOVE_SINGLE_BEVEL_BUTT;
+            }
+            else if (type2 == 2)
+            {
+                weld.TypeBelow = BaseWeld.WeldTypeEnum.WELD_TYPE_PARTIAL_PENETRATION_SINGLE_BEVEL_BUTT_PLUS_FILLET;
+            }
+            else if (type2 == 3)
+            {
+                weld.TypeBelow = BaseWeld.WeldTypeEnum.WELD_TYPE_NONE;
+            }
+            else
+            {
+                weld.TypeBelow = BaseWeld.WeldTypeEnum.WELD_TYPE_FILLET;
+            }
+
+            try
+            {
+                weld.Insert();
+            }
+            catch
+            {
+            }
+
+
+            return weld;
+        }
+
     }
 }
