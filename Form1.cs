@@ -29,35 +29,57 @@ namespace Convert_Hollow_Pipe_to_plate
         {
             Picker input = new Picker();
             Part pipe = input.PickObject(Picker.PickObjectEnum.PICK_ONE_PART) as Part;
-            CoordinateSystem co = pipe.GetCoordinateSystem();
-            ArrayList centerPoints = pipe.GetCenterLine(true);
-            Vector vecy = new Vector((centerPoints[1] as T3D.Point)-(centerPoints[0]as T3D.Point));
-            vecy.Normalize();
-            myModel.GetWorkPlaneHandler().SetCurrentTransformationPlane(new TransformationPlane((centerPoints[0] as T3D.Point), vecy, co.AxisY));
-            double length = 200,thickness = 10 , diam = 1000;
-            pipe.GetReportProperty("PROFILE.PLATE_THICKNESS",ref thickness);
-            pipe.GetReportProperty("HEIGHT", ref diam);
-            pipe.GetReportProperty("LENGTH_NET", ref length);
-          Solid solid =   pipe.GetSolid(Solid.SolidCreationTypeEnum.NORMAL );
-          T3D.Point min = solid.MinimumPoint;
-          T3D.Point zero = new T3D.Point(min.X,0,0);
 
-          PolyBeam plate=  polyPlate(pipe, length, thickness, diam,zero);
-       ModelObjectEnumerator mo=   pipe.GetBooleans();
-       while (mo.MoveNext())
-       {
-           CutPlane cut = mo.Current as CutPlane;
-           if (cut !=null)
-           {
-               CutPlane plateCut = new CutPlane();
-               plateCut.Father = plate;
-               plateCut.Plane = cut.Plane;
-               plateCut.Insert();
-           }
+            PolyBeam polyPipe = pipe as PolyBeam;
+            if (polyPipe != null)
+            {
+                ArrayList points = polyPipe.GetCenterLine(false);
+                double counter = 0;
+                Vector vecZ = new Vector(); ;
+                T3D.Point RPoint = new T3D.Point();
+                for (int i = 0; i < points.Count-1; i++)
+                {
+                    double fac = 1, fac2 = 1;
 
-       }
+                    if (i ==0)
+                    {
+                        fac2 = 0;
+                    }
+                    else if (i == points.Count-2)
+                    {
+                        fac = 0;
+                    }
+                    Vector X = new Vector((points[i + 1] as T3D.Point) - (points[i] as T3D.Point));
+                    X.Normalize();
+                    Beam bean = new Beam();
+                    bean.Profile.ProfileString = polyPipe.Profile.ProfileString;
+                    bean.Position.Depth = Position.DepthEnum.MIDDLE;
+                    bean.Position.Plane = Position.PlaneEnum.MIDDLE;
+                    bean.StartPoint = (points[i] as T3D.Point)-1000 *X*fac2;
+                    bean.EndPoint = (points[i + 1] as T3D.Point) + 1000 * X*fac;
+                   
+                    bean.Insert();
 
-            groovebetween2points( plate,  thickness,  zero, zero + length*vecy, T3D.Vector normalvec, T3D.Vector insidevec, T3D.Point stiffmidpoint, double wsize, double wsize2, int wtype, int wtype2, double wangle, double wangle2, double extension)
+
+
+                    cutTwoSides(points, ref counter, ref vecZ, ref RPoint, i, bean);
+                    if (i != 0 && i != points.Count - 2)
+                    {
+                        cutTwoSides(points, ref counter, ref vecZ, ref RPoint, i, bean);
+
+                    }
+                }
+
+
+            }
+
+
+            Beam beamPipe = pipe as Beam;
+            if (beamPipe !=null)
+            {
+                ConvertPipeToPlate(pipe);
+            }
+
     
             myModel.CommitChanges();
 
@@ -65,7 +87,131 @@ namespace Convert_Hollow_Pipe_to_plate
 
         }
 
-        private static PolyBeam polyPlate(Part pipe, double length, double thickness, double diam, T3D.Point zeroPoint)
+        private void cutTwoSides(ArrayList points, ref double counter, ref Vector vecZ, ref T3D.Point RPoint, int i, Beam bean)
+        {
+            if (counter == 0)
+            {
+                if (points.Count - 1 >= i + 2)
+                {
+                    T3D.Point p1 = points[i] as T3D.Point;
+                    T3D.Point p2 = points[i + 1] as T3D.Point;
+                    T3D.Point p3 = points[i + 2] as T3D.Point;
+                    if (p1 != null && p2 != null && p3 != null)
+                    {
+                        calcPlane(p1, p2, p3, out vecZ, out RPoint);
+                        inclintCut(bean, p2, 1, vecZ, RPoint);
+                        counter++;
+                    }
+                }
+            }
+            else if (counter == 1)
+            {
+
+                {
+                    T3D.Point p1 = points[i - 1] as T3D.Point;
+                    T3D.Point p2 = points[i] as T3D.Point;
+                    T3D.Point p3 = points[i + 1] as T3D.Point;
+                    if (p1 != null && p2 != null && p3 != null)
+                    {
+
+                        inclintCut(bean, p2, -1, vecZ, RPoint);
+                        counter = 0;
+                    }
+                }
+            }
+        }
+
+        private void inclintCut(Beam bean, T3D.Point p2, double factor, Vector vecZ, T3D.Point RotatedPoint)
+        {
+         
+
+            Vector cutVec = new Vector(p2 - RotatedPoint);
+            cutVec.Normalize();
+
+            Plane cutplane = new Plane();
+            cutplane.Origin = p2;
+            cutplane.AxisX = cutVec;
+            cutplane.AxisY = vecZ*factor;
+            CutPlane cut = new CutPlane();
+            cut.Plane = cutplane;
+            cut.Father = bean;
+            cut.Insert();
+            
+        }
+
+        private void calcPlane(T3D.Point p1, T3D.Point p2, T3D.Point p3, out Vector vecZ, out T3D.Point RotatedPoint)
+        {
+            Vector vecX = new Vector(p2 - p1);
+            Vector vecY = new Vector(p2 - p3);
+            vecX.Normalize();
+            vecY.Normalize();
+            vecZ = vecX.Cross(vecY);
+            vecZ.Normalize();
+            GeometricPlane plane = new GeometricPlane(p2, vecX, vecZ);
+            T3D.Point projected = Projection.PointToPlane(p3, plane);
+            double l1 = Distance.PointToPoint(p2, p3);
+            double l2 = Distance.PointToPoint(p2, projected);
+            // l2/l1 cos
+
+            TransformationPlane current = myModel.GetWorkPlaneHandler().GetCurrentTransformationPlane();
+            TransformationPlane transPlane = new TransformationPlane(p2, vecX, vecY);
+            myModel.GetWorkPlaneHandler().SetCurrentTransformationPlane(transPlane);
+
+            T3D.Point p11 = transPlane.TransformationMatrixToLocal.Transform(current.TransformationMatrixToGlobal.Transform(p1));
+            double angle = Math.Acos(l2 / l1);
+            double angleDegree = angle * 180 / Math.PI;
+            Matrix mat = MatrixFactory.Rotate((angle / 2), -1 * vecZ);
+
+            RotatedPoint = mat.Transform(p11);
+            RotatedPoint = current.TransformationMatrixToLocal.Transform(transPlane.TransformationMatrixToGlobal.Transform(RotatedPoint));
+
+            myModel.GetWorkPlaneHandler().SetCurrentTransformationPlane(current);
+        }
+        public Beam check_with_beam(T3D.Point start_point, T3D.Point end_point)
+        {
+            Beam toe_plate = new Beam();
+            toe_plate.StartPoint = start_point;
+            toe_plate.EndPoint = end_point;
+            toe_plate.Profile.ProfileString = "ROD100";
+            toe_plate.Position.Depth = Position.DepthEnum.FRONT;
+            toe_plate.Position.Plane = Position.PlaneEnum.RIGHT;
+            toe_plate.Position.Rotation = Position.RotationEnum.TOP;
+            toe_plate.Insert();
+            return toe_plate;
+        }
+
+        private void ConvertPipeToPlate(Part pipe)
+        {
+            CoordinateSystem co = pipe.GetCoordinateSystem();
+            ArrayList centerPoints = pipe.GetCenterLine(true);
+            Vector vecy = new Vector((centerPoints[1] as T3D.Point) - (centerPoints[0] as T3D.Point));
+            vecy.Normalize();
+            myModel.GetWorkPlaneHandler().SetCurrentTransformationPlane(new TransformationPlane((centerPoints[0] as T3D.Point), vecy, co.AxisY));
+            double length = 200, thickness = 10, diam = 1000;
+            pipe.GetReportProperty("PROFILE.PLATE_THICKNESS", ref thickness);
+            pipe.GetReportProperty("HEIGHT", ref diam);
+            pipe.GetReportProperty("LENGTH_NET", ref length);
+            Solid solid = pipe.GetSolid(Solid.SolidCreationTypeEnum.NORMAL);
+            T3D.Point min = solid.MinimumPoint;
+            T3D.Point zero = new T3D.Point(min.X, 0, 0);
+
+            PolyBeam plate = polyPlate(pipe, length, thickness, diam, zero, 8);
+            ModelObjectEnumerator mo = pipe.GetBooleans();
+            while (mo.MoveNext())
+            {
+                CutPlane cut = mo.Current as CutPlane;
+                if (cut != null)
+                {
+                    CutPlane plateCut = new CutPlane();
+                    plateCut.Father = plate;
+                    plateCut.Plane = cut.Plane;
+                    plateCut.Insert();
+                }
+
+            }
+        }
+
+        private static PolyBeam polyPlate(Part pipe, double length, double thickness, double diam, T3D.Point zeroPoint,double grooveSize)
         {
             PolyBeam plate = new PolyBeam();
             plate.Profile.ProfileString = "PL" + length + "*" + thickness;
@@ -78,6 +224,7 @@ namespace Convert_Hollow_Pipe_to_plate
             ArrayList contour_points = new ArrayList();
             Vector Z = new Vector(0, 0, 1);
             Vector Y = new Vector(0, 1, 0);
+            Vector X = new Vector(1, 0, 0);
             T3D.Point p1 = zeroPoint + diam / 2 * Y;
             T3D.Point p2 = zeroPoint + diam / 2 * Z;
             T3D.Point p3 = zeroPoint - diam / 2 * Y;
@@ -97,10 +244,15 @@ namespace Convert_Hollow_Pipe_to_plate
             contour_points.Add(cp5);
             plate.Contour.ContourPoints = contour_points;
             plate.Insert();
+
+
+            groovebetween2points(plate, thickness, p1, p1 + length * X, -1 * Z, -1 * Y, grooveSize, grooveSize, 1, 1, 45.0, 45.0, 5.0);
+            Weld(plate, plate, grooveSize, grooveSize, 1, 1, 45, 45, 0, 0, 0, 0, 0, "x", "", 0, 0);
+  
             return plate;
         }
 
-        private void groovebetween2points(Part cutpart, double cutthk, T3D.Point p1, T3D.Point p2, T3D.Vector normalvec, T3D.Vector insidevec, T3D.Point stiffmidpoint, double wsize, double wsize2, int wtype, int wtype2, double wangle, double wangle2, double extension)
+        private static void groovebetween2points(Part cutpart, double cutthk, T3D.Point p1, T3D.Point p2, T3D.Vector normalvec, T3D.Vector insidevec, double wsize, double wsize2, int wtype, int wtype2, double wangle, double wangle2, double extension)
         {
             normalvec.Normalize();
             insidevec.Normalize();
@@ -110,11 +262,11 @@ namespace Convert_Hollow_Pipe_to_plate
 
             T3D.Point mymidpoint = getmidpoint(p1, p2);
 
-            T3D.Point gr1p1 = mymidpoint + cutthk / 2 * normalvec;
+            T3D.Point gr1p1 = mymidpoint;
             T3D.Point gr1p2 = gr1p1 - wsize * normalvec;
             T3D.Point gr1p3 = gr1p1 + wsize * Math.Tan(wangle * Math.PI / 180) * insidevec;
 
-            T3D.Point gr2p1 = mymidpoint - cutthk / 2 * normalvec;
+            T3D.Point gr2p1 = mymidpoint ;
             T3D.Point gr2p2 = gr2p1 + wsize2 * normalvec;
             T3D.Point gr2p3 = gr2p1 + wsize2 * Math.Tan(wangle2 * Math.PI / 180) * insidevec;
 
@@ -129,7 +281,7 @@ namespace Convert_Hollow_Pipe_to_plate
             }
         }
 
-        private void createBevel(Part cuttedpart, T3D.Point p1, T3D.Point p2, T3D.Point p3, string profile)
+        private static void createBevel(Part cuttedpart, T3D.Point p1, T3D.Point p2, T3D.Point p3, string profile)
         {
             ContourPlate contourPlate = new ContourPlate();
             contourPlate.Class = BooleanPart.BooleanOperativeClassName;
@@ -154,14 +306,14 @@ namespace Convert_Hollow_Pipe_to_plate
                 contourPlate.Delete();
             }
         }
-        public T3D.Point getmidpoint(T3D.Point p1, T3D.Point p2)
+        public static T3D.Point getmidpoint(T3D.Point p1, T3D.Point p2)
         {
             double dis = T3D.Distance.PointToPoint(p1, p2);
             T3D.Vector vec = new T3D.Vector(p2 - p1); vec.Normalize();
             return p1 + 0.5 * dis * vec;
         }
 
-        public Weld Weld(Part main, Part sec, double Size, double Size2, int type, int type2, double angle, double angle2, double root, double root2, double throat, double throat2, int ShoporSite, string WeldDirection, string Comment, int topgrind, int topgrind2)
+        public static Weld Weld(Part main, Part sec, double Size, double Size2, int type, int type2, double angle, double angle2, double root, double root2, double throat, double throat2, int ShoporSite, string WeldDirection, string Comment, int topgrind, int topgrind2)
         {
             Weld weld = new Weld();
             weld.MainObject = main;
