@@ -59,6 +59,9 @@ namespace Convert_Hollow_Pipe_to_plate
                     bean.Profile.ProfileString = polyPipe.Profile.ProfileString;
                     bean.Position.Depth = Position.DepthEnum.MIDDLE;
                     bean.Position.Plane = Position.PlaneEnum.MIDDLE;
+                    bean.AssemblyNumber = polyPipe.AssemblyNumber;
+                    bean.PartNumber = polyPipe.PartNumber;
+                    bean.Name = polyPipe.Name;
                     bean.StartPoint = (points[i] as T3D.Point) - 1000 * X * fac2;
                     bean.EndPoint = (points[i + 1] as T3D.Point) + 1000 * X * fac;
 
@@ -120,17 +123,17 @@ namespace Convert_Hollow_Pipe_to_plate
             }
 
             myModel.GetWorkPlaneHandler().SetCurrentTransformationPlane(new TransformationPlane());
-    
+            if (checkBox1.Checked)
+            {
+                pipe.Delete();
+            }
             myModel.CommitChanges();
 
 
 
         }
 
-        private void cutTwoSides(ArrayList points, ref double counter, ref Vector vecZ, ref T3D.Point RPoint, int i, Beam bean)
-        {
-          
-        }
+    
 
         private void inclintCut(Beam bean, T3D.Point p2, double factor, Vector vecZ, T3D.Point RotatedPoint)
         {
@@ -216,8 +219,11 @@ namespace Convert_Hollow_Pipe_to_plate
             Solid solid = pipe.GetSolid(Solid.SolidCreationTypeEnum.NORMAL);
             T3D.Point min = solid.MinimumPoint;
             T3D.Point zero = new T3D.Point(min.X, 0, 0);
-
-            PolyBeam plate = polyPlate(pipe, length, thickness, diam, zero, 8);
+            if (!checkBox3.Checked)
+            {
+                thickness = double.Parse(tx_thik.Text);
+            }
+            PolyBeam plate = polyPlate(pipe, length, thickness, diam, zero, double.Parse(tx_groove.Text));
             ModelObjectEnumerator mo = pipe.GetBooleans();
             while (mo.MoveNext())
             {
@@ -240,6 +246,7 @@ namespace Convert_Hollow_Pipe_to_plate
             plate.Material = pipe.Material;
             plate.AssemblyNumber = pipe.AssemblyNumber;
             plate.PartNumber = pipe.PartNumber;
+            plate.Name = pipe.Name;
             plate.Position.Depth = Position.DepthEnum.BEHIND;
             plate.Position.Rotation = Position.RotationEnum.FRONT;
             plate.Position.Plane = Position.PlaneEnum.LEFT;
@@ -456,6 +463,21 @@ namespace Convert_Hollow_Pipe_to_plate
 
             return weld;
         }
+
+     
+
+        private void checkBox3_CheckedChanged(object sender, EventArgs e)
+        {
+            if (checkBox3.Checked)
+            {
+                tx_thik.Enabled = false;
+            }
+            else
+            {
+                tx_thik.Enabled = true;
+            }
+        }
+
 
     }
 }
