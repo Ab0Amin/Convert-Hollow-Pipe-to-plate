@@ -26,26 +26,30 @@ namespace Convert_Hollow_Pipe_to_plate
         }
 
         private void button1_Click(object sender, EventArgs e)
+        
         {
+            myModel.GetWorkPlaneHandler().SetCurrentTransformationPlane(new TransformationPlane());
             Picker input = new Picker();
             Part pipe = input.PickObject(Picker.PickObjectEnum.PICK_ONE_PART) as Part;
 
             PolyBeam polyPipe = pipe as PolyBeam;
+            List<Beam> beams = new List<Beam>();
+            #region poly
             if (polyPipe != null)
             {
                 ArrayList points = polyPipe.GetCenterLine(false);
-                double counter = 0;
+                //double counter = 0;
                 Vector vecZ = new Vector(); ;
                 T3D.Point RPoint = new T3D.Point();
-                for (int i = 0; i < points.Count-1; i++)
+                for (int i = 0; i < points.Count - 1; i++)
                 {
                     double fac = 1, fac2 = 1;
 
-                    if (i ==0)
+                    if (i == 0)
                     {
                         fac2 = 0;
                     }
-                    else if (i == points.Count-2)
+                    else if (i == points.Count - 2)
                     {
                         fac = 0;
                     }
@@ -55,24 +59,59 @@ namespace Convert_Hollow_Pipe_to_plate
                     bean.Profile.ProfileString = polyPipe.Profile.ProfileString;
                     bean.Position.Depth = Position.DepthEnum.MIDDLE;
                     bean.Position.Plane = Position.PlaneEnum.MIDDLE;
-                    bean.StartPoint = (points[i] as T3D.Point)-1000 *X*fac2;
-                    bean.EndPoint = (points[i + 1] as T3D.Point) + 1000 * X*fac;
-                   
+                    bean.StartPoint = (points[i] as T3D.Point) - 1000 * X * fac2;
+                    bean.EndPoint = (points[i + 1] as T3D.Point) + 1000 * X * fac;
+
                     bean.Insert();
 
+                    beams.Add(bean);
 
-
-                    cutTwoSides(points, ref counter, ref vecZ, ref RPoint, i, bean);
-                    if (i != 0 && i != points.Count - 2)
+                    //cutTwoSides(points, ref counter, ref vecZ, ref RPoint, i, bean);
+                    //if (i != 0 && i != points.Count - 2)
                     {
-                        cutTwoSides(points, ref counter, ref vecZ, ref RPoint, i, bean);
+                        //if (counter == 0)
+                        {
+                            if (points.Count - 1 >= i + 2)
+                            {
+                                T3D.Point p1 = points[i] as T3D.Point;
+                                T3D.Point p2 = points[i + 1] as T3D.Point;
+                                T3D.Point p3 = points[i + 2] as T3D.Point;
+                                if (p1 != null && p2 != null && p3 != null)
+                                {
+                                    calcPlane(p1, p2, p3, out vecZ, out RPoint);
+                                    inclintCut(bean, p2, 1, vecZ, RPoint);
+                                    //counter++;
+                                }
+                            }
+                        }
+                        //else if (counter == 1)
+                        {
+                            if (points.Count - 1 >= i + 1 && i - 1 >= 0)
+                            {
+                                T3D.Point p1 = points[i - 1] as T3D.Point;
+                                T3D.Point p2 = points[i] as T3D.Point;
+                                T3D.Point p3 = points[i + 1] as T3D.Point;
+                                if (p1 != null && p2 != null && p3 != null)
+                                {
+                                    calcPlane(p1, p2, p3, out vecZ, out RPoint);
+                                    inclintCut(bean, p2, -1, vecZ, RPoint);
+                                    //counter = 0;
+                                }
+                            }
+                        }
 
                     }
                 }
 
 
             }
-
+            for (int i = 0; i < beams.Count; i++)
+            {
+                ConvertPipeToPlate(beams[i]);
+                beams[i].Delete();
+                //i--;
+            }
+            #endregion
 
             Beam beamPipe = pipe as Beam;
             if (beamPipe !=null)
@@ -80,6 +119,7 @@ namespace Convert_Hollow_Pipe_to_plate
                 ConvertPipeToPlate(pipe);
             }
 
+            myModel.GetWorkPlaneHandler().SetCurrentTransformationPlane(new TransformationPlane());
     
             myModel.CommitChanges();
 
@@ -89,36 +129,7 @@ namespace Convert_Hollow_Pipe_to_plate
 
         private void cutTwoSides(ArrayList points, ref double counter, ref Vector vecZ, ref T3D.Point RPoint, int i, Beam bean)
         {
-            if (counter == 0)
-            {
-                if (points.Count - 1 >= i + 2)
-                {
-                    T3D.Point p1 = points[i] as T3D.Point;
-                    T3D.Point p2 = points[i + 1] as T3D.Point;
-                    T3D.Point p3 = points[i + 2] as T3D.Point;
-                    if (p1 != null && p2 != null && p3 != null)
-                    {
-                        calcPlane(p1, p2, p3, out vecZ, out RPoint);
-                        inclintCut(bean, p2, 1, vecZ, RPoint);
-                        counter++;
-                    }
-                }
-            }
-            else if (counter == 1)
-            {
-
-                {
-                    T3D.Point p1 = points[i - 1] as T3D.Point;
-                    T3D.Point p2 = points[i] as T3D.Point;
-                    T3D.Point p3 = points[i + 1] as T3D.Point;
-                    if (p1 != null && p2 != null && p3 != null)
-                    {
-
-                        inclintCut(bean, p2, -1, vecZ, RPoint);
-                        counter = 0;
-                    }
-                }
-            }
+          
         }
 
         private void inclintCut(Beam bean, T3D.Point p2, double factor, Vector vecZ, T3D.Point RotatedPoint)
@@ -152,7 +163,14 @@ namespace Convert_Hollow_Pipe_to_plate
             double l1 = Distance.PointToPoint(p2, p3);
             double l2 = Distance.PointToPoint(p2, projected);
             // l2/l1 cos
-
+            bool more45 = false;
+            double dis1 = Distance.PointToPoint(p1, p2);
+            double dis2 = Distance.PointToPoint(projected, p1);
+            double dis3 = Distance.PointToPoint(projected, p2);
+            if (dis1 < dis2 || dis1 < dis3)
+            {
+                more45 = true; 
+            }
             TransformationPlane current = myModel.GetWorkPlaneHandler().GetCurrentTransformationPlane();
             TransformationPlane transPlane = new TransformationPlane(p2, vecX, vecY);
             myModel.GetWorkPlaneHandler().SetCurrentTransformationPlane(transPlane);
@@ -160,7 +178,11 @@ namespace Convert_Hollow_Pipe_to_plate
             T3D.Point p11 = transPlane.TransformationMatrixToLocal.Transform(current.TransformationMatrixToGlobal.Transform(p1));
             double angle = Math.Acos(l2 / l1);
             double angleDegree = angle * 180 / Math.PI;
-            Matrix mat = MatrixFactory.Rotate((angle / 2), -1 * vecZ);
+            if (more45)
+            {
+                angleDegree = 180 - angleDegree; 
+            }
+            Matrix mat = MatrixFactory.Rotate((angleDegree / 2) * Math.PI/ 180 , -1 * vecZ);
 
             RotatedPoint = mat.Transform(p11);
             RotatedPoint = current.TransformationMatrixToLocal.Transform(transPlane.TransformationMatrixToGlobal.Transform(RotatedPoint));
