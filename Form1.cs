@@ -28,10 +28,26 @@ namespace Convert_Hollow_Pipe_to_plate
         private void button1_Click(object sender, EventArgs e)
         
         {
-            myModel.GetWorkPlaneHandler().SetCurrentTransformationPlane(new TransformationPlane());
-            Picker input = new Picker();
-            Part pipe = input.PickObject(Picker.PickObjectEnum.PICK_ONE_PART) as Part;
+            //Picker input = new Picker();
+            //Part pipe = input.PickObject(Picker.PickObjectEnum.PICK_ONE_PART) as Part;
+       Tekla.Structures.Model.UI.ModelObjectSelector ms = new Tekla.Structures.Model.UI.ModelObjectSelector();
+            //=     myModel.GetModelObjectSelector();
+   ModelObjectEnumerator me =    ms.GetSelectedObjects();
+   while (me.MoveNext())
+   {
+       Part pipe = me.Current as Part;
+       convert(pipe);
+       myModel.CommitChanges();
+   }
+          
 
+
+
+        }
+
+        private void convert(Part pipe)
+        {
+            myModel.GetWorkPlaneHandler().SetCurrentTransformationPlane(new TransformationPlane());
             PolyBeam polyPipe = pipe as PolyBeam;
             List<Beam> beams = new List<Beam>();
             #region poly
@@ -61,6 +77,7 @@ namespace Convert_Hollow_Pipe_to_plate
                     bean.Position.Plane = Position.PlaneEnum.MIDDLE;
                     bean.AssemblyNumber = polyPipe.AssemblyNumber;
                     bean.PartNumber = polyPipe.PartNumber;
+                    bean.Material = polyPipe.Material;
                     bean.Name = polyPipe.Name;
                     bean.StartPoint = (points[i] as T3D.Point) - 1000 * X * fac2;
                     bean.EndPoint = (points[i + 1] as T3D.Point) + 1000 * X * fac;
@@ -117,19 +134,16 @@ namespace Convert_Hollow_Pipe_to_plate
             #endregion
 
             Beam beamPipe = pipe as Beam;
-            if (beamPipe !=null)
+            if (beamPipe != null)
             {
                 ConvertPipeToPlate(pipe);
             }
 
-            myModel.GetWorkPlaneHandler().SetCurrentTransformationPlane(new TransformationPlane());
             if (checkBox1.Checked)
             {
                 pipe.Delete();
             }
-            myModel.CommitChanges();
-
-
+            myModel.GetWorkPlaneHandler().SetCurrentTransformationPlane(new TransformationPlane());
 
         }
 

@@ -7,3 +7,5 @@ C:\development\applications\Convert Hollow Pipe to plate\Convert Hollow Pipe to 
 C:\development\applications\Convert Hollow Pipe to plate\Convert Hollow Pipe to plate\obj\Debug\Convert Hollow Pipe to plate.csproj.GenerateResource.Cache
 C:\development\applications\Convert Hollow Pipe to plate\Convert Hollow Pipe to plate\obj\Debug\Convert Hollow Pipe to plate.exe
 C:\development\applications\Convert Hollow Pipe to plate\Convert Hollow Pipe to plate\obj\Debug\Convert Hollow Pipe to plate.pdb
+C:\development\applications\Convert Hollow Pipe to plate\Convert Hollow Pipe to plate\bin\Debug\Newtonsoft.Json.dll
+C:\development\applications\Convert Hollow Pipe to plate\Convert Hollow Pipe to plate\bin\Debug\Newtonsoft.Json.xml
